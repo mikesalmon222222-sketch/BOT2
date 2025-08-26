@@ -20,7 +20,7 @@ const Credentials = () => {
 
   useEffect(() => {
     fetchCredentials();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchCredentials = async () => {
     try {

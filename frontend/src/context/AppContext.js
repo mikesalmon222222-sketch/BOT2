@@ -149,7 +149,7 @@ export const AppProvider = ({ children }) => {
     }, 15 * 60 * 1000); // 15 minutes
 
     return () => clearInterval(interval);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = {
     ...state,
