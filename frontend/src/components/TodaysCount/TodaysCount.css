@@ -1,0 +1,46 @@
+.todays-count {
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.todays-count h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.count-display {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.count-number {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #007bff;
+  line-height: 1;
+}
+
+.count-label {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 5px;
+}
+
+.last-refresh {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.auto-refresh-info {
+  text-align: center;
+}
+
+.auto-refresh-info small {
+  color: #999;
+  font-style: italic;
+}
