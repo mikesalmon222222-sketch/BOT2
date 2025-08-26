@@ -1,0 +1,219 @@
+const puppeteer = require('puppeteer');
+const Bid = require('../models/Bid');
+const Credential = require('../models/Credential');
+const logger = require('../utils/logger');
+
+class ScraperService {
+  constructor() {
+    this.browser = null;
+    this.isRunning = false;
+  }
+
+  async initBrowser() {
+    if (!this.browser) {
+      this.browser = await puppeteer.launch({
+        headless: 'new',
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ]
+      });
+    }
+    return this.browser;
+  }
+
+  async closeBrowser() {
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
+  }
+
+  async scrapeMetroPortal() {
+    const url = 'https://business.metro.net/webcenter/portal/VendorPortal/pages_home/solicitations/openSolicitations';
+    
+    try {
+      const browser = await this.initBrowser();
+      const page = await browser.newPage();
+      
+      // Set user agent and viewport
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+      await page.setViewport({ width: 1920, height: 1080 });
+
+      logger.info('Navigating to Metro portal...');
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+      // Wait for the table to load
+      await page.waitForSelector('table', { timeout: 30000 });
+
+      logger.info('Extracting bid data...');
+      const bids = await page.evaluate(() => {
+        const rows = document.querySelectorAll('table tbody tr');
+        const extractedBids = [];
+        
+        rows.forEach((row, index) => {
+          try {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 4) {
+              // Extract timestamp (assuming current time for demonstration)
+              const timestamp = new Date().toISOString();
+              
+              // Extract expiration date from first cell or a date column
+              let expirationDate = new Date();
+              expirationDate.setDate(expirationDate.getDate() + 30); // Default 30 days from now
+              
+              const firstCellText = cells[0]?.textContent?.trim();
+              if (firstCellText && firstCellText.includes('/')) {
+                const dateMatch = firstCellText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                if (dateMatch) {
+                  expirationDate = new Date(dateMatch[1]);
+                }
+              }
+              
+              // Extract title (usually in second or third column)
+              const title = cells[1]?.textContent?.trim() || cells[2]?.textContent?.trim() || `Metro Solicitation ${index + 1}`;
+              
+              // Extract quantity (look for patterns)
+              let quantity = '1 unit';
+              for (let cell of cells) {
+                const cellText = cell.textContent?.trim();
+                if (cellText && (cellText.includes('qty') || cellText.includes('quantity') || cellText.match(/\d+\s*(units?|pcs?|items?)/i))) {
+                  quantity = cellText;
+                  break;
+                }
+              }
+              
+              // Extract description (combine relevant cells)
+              const description = Array.from(cells).map(cell => cell.textContent?.trim()).filter(text => text && text.length > 10).join(' - ').substring(0, 500);
+              
+              // Extract documents (look for links)
+              const documents = [];
+              row.querySelectorAll('a[href]').forEach(link => {
+                const href = link.getAttribute('href');
+                if (href && (href.includes('.pdf') || href.includes('document') || href.includes('doc'))) {
+                  documents.push(href.startsWith('http') ? href : `https://business.metro.net${href}`);
+                }
+              });
+              
+              extractedBids.push({
+                id: `metro_${Date.now()}_${index}`,
+                timestamp,
+                expirationDate: expirationDate.toISOString(),
+                title,
+                quantity,
+                description: description || `Metro solicitation for ${title}`,
+                documents,
+                portal: 'metro'
+              });
+            }
+          } catch (error) {
+            console.error('Error processing row:', error);
+          }
+        });
+        
+        return extractedBids;
+      });
+
+      await page.close();
+      
+      logger.info(`Extracted ${bids.length} bids from Metro portal`);
+      return bids;
+      
+    } catch (error) {
+      logger.error('Error scraping Metro portal:', error);
+      throw error;
+    }
+  }
+
+  async saveBids(bids) {
+    const savedBids = [];
+    
+    for (const bidData of bids) {
+      try {
+        // Check if bid already exists
+        const existingBid = await Bid.findOne({ id: bidData.id });
+        
+        if (!existingBid) {
+          const bid = new Bid(bidData);
+          await bid.save();
+          savedBids.push(bid);
+          logger.info(`Saved new bid: ${bidData.title}`);
+        } else {
+          logger.debug(`Bid already exists: ${bidData.title}`);
+        }
+      } catch (error) {
+        logger.error('Error saving bid:', error);
+      }
+    }
+    
+    return savedBids;
+  }
+
+  async runScraper() {
+    if (this.isRunning) {
+      logger.warn('Scraper is already running');
+      return { success: false, message: 'Scraper is already running' };
+    }
+
+    this.isRunning = true;
+    
+    try {
+      logger.info('Starting scraper...');
+      
+      // Get active credentials
+      const credentials = await Credential.find({ isActive: true });
+      logger.info(`Found ${credentials.length} active credentials`);
+
+      // For now, focus on Metro portal (can be extended for other portals)
+      const bids = await this.scrapeMetroPortal();
+      const savedBids = await this.saveBids(bids);
+      
+      logger.info(`Scraper completed. Saved ${savedBids.length} new bids`);
+      
+      return {
+        success: true,
+        message: `Scraper completed successfully`,
+        newBids: savedBids.length,
+        totalBids: bids.length
+      };
+      
+    } catch (error) {
+      logger.error('Scraper failed:', error);
+      return {
+        success: false,
+        message: 'Scraper failed',
+        error: error.message
+      };
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  async getTodaysBidCount() {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const count = await Bid.countDocuments({
+        createdAt: {
+          $gte: today,
+          $lt: tomorrow
+        }
+      });
+
+      return count;
+    } catch (error) {
+      logger.error('Error getting today\'s bid count:', error);
+      return 0;
+    }
+  }
+}
+
+module.exports = new ScraperService();
