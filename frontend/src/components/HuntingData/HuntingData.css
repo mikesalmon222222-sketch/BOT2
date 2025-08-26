@@ -1,0 +1,123 @@
+.hunting-data {
+  padding: 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.refresh-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.refresh-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.loading, .error, .no-data {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-style: italic;
+}
+
+.error {
+  color: #dc3545;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.bids-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.bids-table th,
+.bids-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.bids-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  position: sticky;
+  top: 0;
+}
+
+.bids-table tr:hover {
+  background: #f8f9fa;
+}
+
+.title-cell {
+  max-width: 200px;
+  font-weight: 500;
+}
+
+.description-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.documents {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.document-link {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.document-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .hunting-data {
+    padding: 10px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .bids-table th,
+  .bids-table td {
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+}
