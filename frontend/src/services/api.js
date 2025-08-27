@@ -12,15 +12,24 @@ const apiRequest = async (endpoint, options = {}) => {
 
   console.log(`API Request: ${config.method || 'GET'} ${url}`);
 
-  const response = await fetch(url, config);
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    console.error('API Error:', error);
-    throw new Error(error.message || 'Request failed');
+  try {
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' }));
+      console.error('API Error:', error);
+      throw new Error(error.error || error.message || 'Request failed');
+    }
+    
+    return response.json();
+  } catch (error) {
+    // Handle network errors gracefully
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      console.error('Network Error: Unable to connect to server');
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+    throw error;
   }
-  
-  return response.json();
 };
 
 // Bid API endpoints

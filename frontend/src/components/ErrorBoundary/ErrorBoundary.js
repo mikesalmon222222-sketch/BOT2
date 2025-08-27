@@ -17,7 +17,7 @@ class ErrorBoundary extends React.Component {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.setState({
       error: error,
-      errorInfo: errorInfo
+      errorInfo: errorInfo || { componentStack: 'No stack trace available' }
     });
   }
 
@@ -45,7 +45,7 @@ class ErrorBoundary extends React.Component {
             >
               Refresh Page
             </button>
-            {process.env.NODE_ENV === 'development' && (
+            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
               <details style={{ whiteSpace: 'pre-wrap', marginTop: '20px' }}>
                 <summary>Error Details (Development Only)</summary>
                 <pre>{this.state.error && this.state.error.toString()}</pre>

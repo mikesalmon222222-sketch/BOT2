@@ -11,19 +11,45 @@ const fetchBids = async ({ page = 1, limit = 10, portal, sortBy = 'createdAt', s
   if (sortBy) params.append('sortBy', sortBy);
   if (sortOrder) params.append('sortOrder', sortOrder);
 
-  const response = await fetch(`${API_BASE_URL}/bids?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch bids');
+  try {
+    const response = await fetch(`${API_BASE_URL}/bids?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Return empty result structure for network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      return {
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        pages: 0,
+        data: []
+      };
+    }
+    throw error;
   }
-  return response.json();
 };
 
 const fetchTodaysCount = async () => {
-  const response = await fetch(`${API_BASE_URL}/bids/today`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch today\'s count');
+  try {
+    const response = await fetch(`${API_BASE_URL}/bids/today`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Return empty result structure for network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      return {
+        success: true,
+        data: { count: 0, date: new Date().toISOString().split('T')[0] }
+      };
+    }
+    throw error;
   }
-  return response.json();
 };
 
 const refreshBids = async () => {

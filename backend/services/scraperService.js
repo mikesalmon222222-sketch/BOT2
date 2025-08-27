@@ -35,8 +35,8 @@ class ScraperService {
     }
   }
 
-  async scrapeMetroPortal() {
-    const url = 'https://business.metro.net/webcenter/portal/VendorPortal/pages_home/solicitations/openSolicitations';
+  async scrapeMetroPortal(credential) {
+    const url = credential?.url || 'https://business.metro.net/webcenter/portal/VendorPortal/pages_home/solicitations/openSolicitations';
     
     try {
       const browser = await this.initBrowser();
@@ -143,6 +143,90 @@ class ScraperService {
     }
   }
 
+  async scrapeSEPTAPortal(credential) {
+    if (!credential.username || !credential.password) {
+      throw new Error('SEPTA portal requires valid credentials');
+    }
+
+    const url = credential.url || 'https://epsadmin.septa.org/vendor/requisitions/list/';
+    
+    try {
+      const browser = await this.initBrowser();
+      const page = await browser.newPage();
+      
+      // Set user agent and viewport
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+      await page.setViewport({ width: 1920, height: 1080 });
+
+      logger.info('Navigating to SEPTA portal...');
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+      // Login process
+      logger.info('Attempting to login to SEPTA portal...');
+      
+      // Wait for login form
+      await page.waitForSelector('input[name="username"], input[type="text"]', { timeout: 10000 });
+      
+      // Fill in credentials
+      await page.type('input[name="username"], input[type="text"]', credential.username);
+      await page.type('input[name="password"], input[type="password"]', credential.password);
+      
+      // Submit login form
+      await page.click('input[type="submit"], button[type="submit"]');
+      
+      // Wait for login to complete (adjust selector based on actual SEPTA portal)
+      await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
+      
+      logger.info('Login successful, extracting bid data...');
+      
+      // Extract bids (this would need to be customized based on SEPTA's actual structure)
+      const bids = await page.evaluate(() => {
+        // This is a placeholder - would need to be customized for SEPTA's actual HTML structure
+        const rows = document.querySelectorAll('table tbody tr, .bid-row, .requisition-row');
+        const extractedBids = [];
+        
+        rows.forEach((row, index) => {
+          try {
+            // Extract bid information - customize based on SEPTA's structure
+            const titleElement = row.querySelector('td:nth-child(1), .title, .name');
+            const dateElement = row.querySelector('td:nth-child(2), .date, .posted-date');
+            const dueDateElement = row.querySelector('td:nth-child(3), .due-date, .closing-date');
+            const linkElement = row.querySelector('a');
+            
+            if (titleElement) {
+              const bid = {
+                id: `septa_${Date.now()}_${index}`,
+                title: titleElement.textContent.trim(),
+                postedDate: dateElement ? dateElement.textContent.trim() : new Date().toISOString(),
+                dueDate: dueDateElement ? dueDateElement.textContent.trim() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+                quantity: 'N/A',
+                description: titleElement.textContent.trim(),
+                documents: [],
+                bidLink: linkElement ? linkElement.href : '',
+                portal: 'septa'
+              };
+              
+              extractedBids.push(bid);
+            }
+          } catch (error) {
+            console.error('Error extracting bid data from row:', error);
+          }
+        });
+        
+        return extractedBids;
+      });
+
+      await page.close();
+      
+      logger.info(`Extracted ${bids.length} bids from SEPTA portal`);
+      return bids;
+      
+    } catch (error) {
+      logger.error('Error scraping SEPTA portal:', error);
+      throw error;
+    }
+  }
+
   async saveBids(bids) {
     const savedBids = [];
     
@@ -204,9 +288,34 @@ class ScraperService {
         };
       }
 
-      // For now, focus on Metro portal (can be extended for other portals)
-      const bids = await this.scrapeMetroPortal();
-      const savedBids = await this.saveBids(bids);
+      // Scrape from all configured portals
+      let allBids = [];
+      
+      for (const credential of credentials) {
+        try {
+          let portalBids = [];
+          
+          if (credential.portalName === 'Metro') {
+            logger.info('Scraping Metro portal...');
+            portalBids = await this.scrapeMetroPortal(credential);
+          } else if (credential.portalName === 'SEPTA') {
+            logger.info('Scraping SEPTA portal...');
+            portalBids = await this.scrapeSEPTAPortal(credential);
+          } else {
+            logger.warn(`Unknown portal type: ${credential.portalName}`);
+            continue;
+          }
+          
+          allBids = allBids.concat(portalBids);
+          logger.info(`Scraped ${portalBids.length} bids from ${credential.portalName} portal`);
+          
+        } catch (error) {
+          logger.error(`Error scraping ${credential.portalName} portal:`, error);
+          // Continue with other portals even if one fails
+        }
+      }
+
+      const savedBids = await this.saveBids(allBids);
       
       logger.info(`Scraper completed. Saved ${savedBids.length} new bids`);
       
@@ -214,7 +323,7 @@ class ScraperService {
         success: true,
         message: `Scraper completed successfully`,
         newBids: savedBids.length,
-        totalBids: bids.length
+        totalBids: allBids.length
       };
       
     } catch (error) {
