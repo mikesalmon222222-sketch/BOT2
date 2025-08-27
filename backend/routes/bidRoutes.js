@@ -3,7 +3,8 @@ const {
   getAllBids,
   getTodaysBidCount,
   refreshBids,
-  getBidById
+  getBidById,
+  deleteBidById
 } = require('../controllers/bidController');
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.route('/refresh')
   .post(refreshBids);
 
 router.route('/:id')
-  .get(getBidById);
+  .get(getBidById)
+  .delete(deleteBidById);
 
 module.exports = router;

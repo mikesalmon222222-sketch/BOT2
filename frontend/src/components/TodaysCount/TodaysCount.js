@@ -1,18 +1,11 @@
-import React, { useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import React from 'react';
+import { useTodaysCount } from '../../hooks/useBids';
 import './TodaysCount.css';
 
 const TodaysCount = () => {
-  const { todaysCount, loading, error, fetchTodaysCount, lastRefresh } = useApp();
+  const { data: countData, isLoading, error } = useTodaysCount();
 
-  useEffect(() => {
-    // Auto-refresh count every minute
-    const interval = setInterval(() => {
-      fetchTodaysCount();
-    }, 60000); // 1 minute
-
-    return () => clearInterval(interval);
-  }, [fetchTodaysCount]);
+  const todaysCount = countData?.data?.count || 0;
 
   const formatLastRefresh = (timestamp) => {
     if (!timestamp) return 'Never';
@@ -25,12 +18,12 @@ const TodaysCount = () => {
       <div className="count-header">
         <h2>Today's Bid Count</h2>
         <div className="refresh-info">
-          Last updated: {formatLastRefresh(lastRefresh)}
+          Last updated: {formatLastRefresh(new Date())}
         </div>
       </div>
 
       <div className="count-display">
-        {loading ? (
+        {isLoading ? (
           <div className="loading">
             <div className="spinner"></div>
             <span>Loading...</span>

@@ -1,91 +1,108 @@
-import axios from 'axios';
-
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
-// Create axios instance
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// API request helper
+const apiRequest = async (endpoint, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    ...options,
+  };
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  console.log(`API Request: ${config.method || 'GET'} ${url}`);
 
-// Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    console.error('API Error:', error.response?.data || error.message);
-    return Promise.reject(error);
+  const response = await fetch(url, config);
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Request failed' }));
+    console.error('API Error:', error);
+    throw new Error(error.message || 'Request failed');
   }
-);
+  
+  return response.json();
+};
 
 // Bid API endpoints
 export const getBids = (params = {}) => {
-  return api.get('/bids', { params });
+  const queryParams = new URLSearchParams(params).toString();
+  const endpoint = `/bids${queryParams ? `?${queryParams}` : ''}`;
+  return apiRequest(endpoint);
 };
 
 export const getTodaysBidCount = () => {
-  return api.get('/bids/today');
+  return apiRequest('/bids/today');
 };
 
 export const refreshBids = () => {
-  return api.post('/bids/refresh');
+  return apiRequest('/bids/refresh', { method: 'POST' });
 };
 
 export const getBidById = (id) => {
-  return api.get(`/bids/${id}`);
+  return apiRequest(`/bids/${id}`);
 };
 
 // Credential API endpoints
 export const getCredentials = () => {
-  return api.get('/credentials');
+  return apiRequest('/credentials');
 };
 
 export const createCredential = (credentialData) => {
-  return api.post('/credentials', credentialData);
+  return apiRequest('/credentials', {
+    method: 'POST',
+    body: JSON.stringify(credentialData),
+  });
 };
 
 export const updateCredential = (id, credentialData) => {
-  return api.put(`/credentials/${id}`, credentialData);
+  return apiRequest(`/credentials/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(credentialData),
+  });
 };
 
 export const deleteCredential = (id) => {
-  return api.delete(`/credentials/${id}`);
+  return apiRequest(`/credentials/${id}`, {
+    method: 'DELETE',
+  });
 };
 
 // Scraper API endpoints
 export const runScraper = () => {
-  return api.post('/scraper/run');
+  return apiRequest('/scraper/run', { method: 'POST' });
 };
 
 export const getScraperStatus = () => {
-  return api.get('/scraper/status');
+  return apiRequest('/scraper/status');
 };
 
 export const startScheduler = () => {
-  return api.post('/scraper/scheduler/start');
+  return apiRequest('/scraper/scheduler/start', { method: 'POST' });
 };
 
 export const stopScheduler = () => {
-  return api.post('/scraper/scheduler/stop');
+  return apiRequest('/scraper/scheduler/stop', { method: 'POST' });
 };
 
 // Health check
 export const healthCheck = () => {
-  return api.get('/health');
+  return apiRequest('/health');
 };
 
-export default api;
+const apiHelpers = { 
+  getBids, 
+  getTodaysBidCount, 
+  refreshBids, 
+  getBidById, 
+  getCredentials, 
+  createCredential, 
+  updateCredential, 
+  deleteCredential, 
+  runScraper, 
+  getScraperStatus, 
+  startScheduler, 
+  stopScheduler, 
+  healthCheck 
+};
+
+export default apiHelpers;

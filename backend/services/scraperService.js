@@ -60,18 +60,25 @@ class ScraperService {
           try {
             const cells = row.querySelectorAll('td');
             if (cells.length >= 4) {
-              // Extract timestamp (assuming current time for demonstration)
-              const timestamp = new Date().toISOString();
+              // Extract bid link (original portal URL)
+              let bidLink = window.location.href; // Default to current page
+              const linkElement = row.querySelector('a[href]');
+              if (linkElement) {
+                const href = linkElement.getAttribute('href');
+                bidLink = href.startsWith('http') ? href : `https://business.metro.net${href}`;
+              }
               
-              // Extract expiration date from first cell or a date column
-              let expirationDate = new Date();
-              expirationDate.setDate(expirationDate.getDate() + 30); // Default 30 days from now
+              // Normalize date fields to standardized format
+              const postedDate = new Date().toISOString(); // Use current time as posted date
+              let dueDate = new Date();
+              dueDate.setDate(dueDate.getDate() + 30); // Default 30 days from now
               
+              // Try to extract actual due date from table
               const firstCellText = cells[0]?.textContent?.trim();
               if (firstCellText && firstCellText.includes('/')) {
                 const dateMatch = firstCellText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
                 if (dateMatch) {
-                  expirationDate = new Date(dateMatch[1]);
+                  dueDate = new Date(dateMatch[1]);
                 }
               }
               
@@ -102,12 +109,17 @@ class ScraperService {
               
               extractedBids.push({
                 id: `metro_${Date.now()}_${index}`,
-                timestamp,
-                expirationDate: expirationDate.toISOString(),
+                // Standardized fields
+                postedDate,
+                dueDate: dueDate.toISOString(),
+                // Legacy fields for backward compatibility
+                timestamp: postedDate,
+                expirationDate: dueDate.toISOString(),
                 title,
                 quantity,
                 description: description || `Metro solicitation for ${title}`,
                 documents,
+                bidLink,
                 portal: 'metro'
               });
             }
@@ -169,6 +181,17 @@ class ScraperService {
       const credentials = await Credential.find({ isActive: true });
       logger.info(`Found ${credentials.length} active credentials`);
 
+      // Only scrape if there are active credentials
+      if (credentials.length === 0) {
+        logger.warn('No active credentials found. Scraping skipped.');
+        return {
+          success: false,
+          message: 'No active credentials found. Please add and activate portal credentials to enable scraping.',
+          newBids: 0,
+          totalBids: 0
+        };
+      }
+
       // For now, focus on Metro portal (can be extended for other portals)
       const bids = await this.scrapeMetroPortal();
       const savedBids = await this.saveBids(bids);
@@ -186,11 +209,13 @@ class ScraperService {
       logger.error('Scraper failed:', error);
       return {
         success: false,
-        message: 'Scraper failed',
-        error: error.message
+        message: 'Scraper failed: ' + error.message,
+        newBids: 0,
+        totalBids: 0
       };
     } finally {
       this.isRunning = false;
+      await this.closeBrowser();
     }
   }
 
