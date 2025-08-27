@@ -10,6 +10,7 @@ const logger = require('./utils/logger');
 const bidRoutes = require('./routes/bidRoutes');
 const credentialRoutes = require('./routes/credentialRoutes');
 const scraperRoutes = require('./routes/scraperRoutes');
+const testRoutes = require('./routes/testRoutes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use((req, res, next) => {
 app.use('/api/bids', bidRoutes);
 app.use('/api/credentials', credentialRoutes);
 app.use('/api/scraper', scraperRoutes);
+app.use('/api', testRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

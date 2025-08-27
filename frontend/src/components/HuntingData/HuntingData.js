@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useBids, useRefreshBids, useDeleteBid } from '../../hooks/useBids';
+import { testSeptaScraper } from '../../services/api';
 import Pagination from '../Pagination/Pagination';
 import './HuntingData.css';
 
@@ -9,6 +10,8 @@ const HuntingData = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [testingScaper, setTestingScraper] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   const limit = 10; // Items per page
   
@@ -39,6 +42,37 @@ const HuntingData = () => {
       await refreshMutation.mutateAsync();
     } catch (error) {
       console.error('Failed to refresh bids:', error);
+    }
+  };
+
+  const handleTestScraper = async () => {
+    try {
+      setTestingScraper(true);
+      setTestResult(null);
+      const response = await testSeptaScraper();
+      setTestResult({
+        success: response.success,
+        message: response.message,
+        details: response.success 
+          ? `Found ${response.results?.bidsFound || 0} bids using ${response.testCredentials?.username}@${response.testCredentials?.portal}`
+          : response.error
+      });
+      
+      // Refresh bids after test to show any new data
+      if (response.success) {
+        setTimeout(() => {
+          handleRefresh();
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('Failed to test scraper:', error);
+      setTestResult({
+        success: false,
+        message: 'Test failed',
+        details: error.message
+      });
+    } finally {
+      setTestingScraper(false);
     }
   };
 
@@ -136,6 +170,15 @@ const HuntingData = () => {
           >
             {isLoading || refreshMutation.isPending ? '⏳' : '🔄'} Refresh
           </button>
+          
+          <button 
+            className={`test-scraper-btn ${testingScaper ? 'loading' : ''}`}
+            onClick={handleTestScraper}
+            disabled={testingScaper}
+            title="Test SEPTA scraper with JoeRoot/Quan999999 credentials"
+          >
+            {testingScaper ? '⏳' : '🧪'} Test SEPTA Scraper
+          </button>
         </div>
       </div>
 
@@ -143,6 +186,17 @@ const HuntingData = () => {
         <div className="error-message">
           <span className="error-icon">⚠️</span>
           <span>{error}</span>
+        </div>
+      )}
+
+      {testResult && (
+        <div className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+          <span className="result-icon">{testResult.success ? '✅' : '❌'}</span>
+          <div className="result-content">
+            <strong>{testResult.message}</strong>
+            <p>{testResult.details}</p>
+          </div>
+          <button className="close-result" onClick={() => setTestResult(null)}>✕</button>
         </div>
       )}
 
