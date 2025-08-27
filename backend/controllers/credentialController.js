@@ -2,6 +2,7 @@ const Credential = require('../models/Credential');
 const mongoose = require('mongoose');
 const scraperService = require('../services/scraperService');
 const logger = require('../utils/logger');
+const mockDatabase = require('../utils/mockDatabase');
 
 // Helper function to check MongoDB connection
 const isMongoConnected = () => {
@@ -13,16 +14,19 @@ const isMongoConnected = () => {
 // @access  Public
 const getAllCredentials = async (req, res, next) => {
   try {
-    // Check MongoDB connection first
-    if (!isMongoConnected()) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        data: []
+    let credentials;
+    
+    if (isMongoConnected()) {
+      credentials = await Credential.find().select('-password');
+    } else {
+      // Use mock database when MongoDB is not available
+      logger.warn('MongoDB not connected, using mock database for credentials');
+      const mockCredentials = mockDatabase.credentials.find();
+      credentials = mockCredentials.map(c => {
+        const { password, ...credentialWithoutPassword } = c;
+        return credentialWithoutPassword;
       });
     }
-
-    const credentials = await Credential.find().select('-password');
     
     res.status(200).json({
       success: true,
@@ -48,15 +52,6 @@ const getAllCredentials = async (req, res, next) => {
 // @access  Public
 const createCredential = async (req, res, next) => {
   try {
-    // Check MongoDB connection first
-    if (!isMongoConnected()) {
-      return res.status(503).json({
-        success: false,
-        error: 'Database connection unavailable',
-        message: 'Cannot create credentials without database connection'
-      });
-    }
-
     const { portalName, url, username, password, isActive } = req.body;
 
     // Validation
@@ -85,25 +80,64 @@ const createCredential = async (req, res, next) => {
       }
     }
 
-    // Check if portal already exists
-    const existingCredential = await Credential.findOne({ portalName });
-    if (existingCredential) {
-      return res.status(400).json({
-        success: false,
-        error: `Portal ${portalName} is already configured. Please update the existing credential instead.`
+    let credential, responseCredential;
+
+    if (isMongoConnected()) {
+      // Check if portal already exists
+      const existingCredential = await Credential.findOne({ portalName });
+      if (existingCredential) {
+        return res.status(400).json({
+          success: false,
+          error: `Portal ${portalName} is already configured. Please update the existing credential instead.`
+        });
+      }
+
+      credential = await Credential.create({
+        portalName,
+        url: url || '', // Will be set by pre-save middleware if empty
+        username,
+        password,
+        isActive: isActive !== false
       });
+
+      // Don't return password in response
+      responseCredential = await Credential.findById(credential._id).select('-password');
+    } else {
+      // Use mock database
+      logger.warn('MongoDB not connected, using mock database for credential creation');
+      
+      // Check if portal already exists in mock
+      const existingCredential = mockDatabase.credentials.findOne({ portalName });
+      if (existingCredential) {
+        return res.status(400).json({
+          success: false,
+          error: `Portal ${portalName} is already configured. Please update the existing credential instead.`
+        });
+      }
+
+      // Set default URLs based on portal type
+      let finalUrl = url;
+      if (!url || url.trim() === '') {
+        if (portalName === 'Metro') {
+          finalUrl = 'https://business.metro.net/webcenter/portal/VendorPortal/pages_home/solicitations/openSolicitations';
+        } else if (portalName === 'SEPTA') {
+          finalUrl = 'https://epsadmin.septa.org/vendor/requisitions/list/';
+        }
+      }
+
+      credential = mockDatabase.credentials.create({
+        portalName,
+        url: finalUrl,
+        username: portalName === 'Metro' ? undefined : username,
+        password: portalName === 'Metro' ? undefined : password,
+        isPublic: portalName === 'Metro',
+        isActive: isActive !== false
+      });
+
+      // Don't return password in response
+      const { password: _, ...credentialWithoutPassword } = credential;
+      responseCredential = credentialWithoutPassword;
     }
-
-    const credential = await Credential.create({
-      portalName,
-      url: url || '', // Will be set by pre-save middleware if empty
-      username,
-      password,
-      isActive: isActive !== false
-    });
-
-    // Don't return password in response
-    const responseCredential = await Credential.findById(credential._id).select('-password');
 
     // Trigger immediate scraping for the new portal (async, don't wait)
     setImmediate(async () => {
