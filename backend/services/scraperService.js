@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer');
+const mongoose = require('mongoose');
 const Bid = require('../models/Bid');
 const Credential = require('../models/Credential');
 const logger = require('../utils/logger');
@@ -172,6 +173,17 @@ class ScraperService {
       return { success: false, message: 'Scraper is already running' };
     }
 
+    // Check MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      logger.warn('Cannot run scraper: MongoDB not connected');
+      return {
+        success: false,
+        message: 'Database connection unavailable. Cannot run scraper.',
+        newBids: 0,
+        totalBids: 0
+      };
+    }
+
     this.isRunning = true;
     
     try {
@@ -221,6 +233,12 @@ class ScraperService {
 
   async getTodaysBidCount() {
     try {
+      // Check MongoDB connection
+      if (mongoose.connection.readyState !== 1) {
+        logger.warn('Cannot get today\'s bid count: MongoDB not connected');
+        return 0;
+      }
+
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);

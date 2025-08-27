@@ -8,6 +8,12 @@ const errorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 
+  // MongoDB connection errors
+  if (err.name === 'MongoNetworkError' || err.name === 'MongoServerError' || err.name === 'MongooseServerSelectionError') {
+    const message = 'Database connection unavailable';
+    error = { message, status: 503 };
+  }
+
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     const message = 'Resource not found';
