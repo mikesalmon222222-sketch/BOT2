@@ -7,7 +7,7 @@ const logger = require('../utils/logger');
 // @access  Public
 const getAllBids = async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, portal, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 10, portal, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
     const query = {};
     if (portal) {
@@ -99,9 +99,35 @@ const getBidById = async (req, res, next) => {
   }
 };
 
+// @desc    Delete bid by ID
+// @route   DELETE /api/bids/:id
+// @access  Public
+const deleteBidById = async (req, res, next) => {
+  try {
+    const bid = await Bid.findOneAndDelete({ id: req.params.id });
+    
+    if (!bid) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bid not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Bid deleted successfully',
+      data: bid
+    });
+  } catch (error) {
+    logger.error('Error deleting bid by ID:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   getAllBids,
   getTodaysBidCount,
   refreshBids,
-  getBidById
+  getBidById,
+  deleteBidById
 };

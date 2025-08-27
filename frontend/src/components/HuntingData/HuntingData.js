@@ -1,12 +1,28 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useBids, useRefreshBids, useDeleteBid } from '../../hooks/useBids';
+import Pagination from '../Pagination/Pagination';
 import './HuntingData.css';
 
 const HuntingData = () => {
-  const { bids, loading, error, handleRefresh, lastRefresh } = useApp();
+  const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const limit = 10; // Items per page
+  
+  const { data: bidsData, isLoading, error } = useBids(currentPage, limit, sortField, sortOrder);
+  const refreshMutation = useRefreshBids();
+  const deleteMutation = useDeleteBid();
+
+  const bids = bidsData?.data || [];
+  const pagination = {
+    currentPage: bidsData?.page || 1,
+    totalPages: bidsData?.pages || 1,
+    total: bidsData?.total || 0,
+    count: bidsData?.count || 0
+  };
 
   const handleSort = (field) => {
     if (field === sortField) {
@@ -15,14 +31,44 @@ const HuntingData = () => {
       setSortField(field);
       setSortOrder('desc');
     }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  const handleRefresh = async () => {
+    try {
+      await refreshMutation.mutateAsync();
+    } catch (error) {
+      console.error('Failed to refresh bids:', error);
+    }
+  };
+
+  const handleDeleteClick = (bid) => {
+    setDeleteConfirm(bid);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirm) {
+      try {
+        await deleteMutation.mutateAsync(deleteConfirm.id);
+        setDeleteConfirm(null);
+      } catch (error) {
+        console.error('Failed to delete bid:', error);
+      }
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm(null);
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
   const formatExpiration = (dateString) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     const now = new Date();
     const diff = date - now;
@@ -35,6 +81,7 @@ const HuntingData = () => {
   };
 
   const getExpirationClass = (dateString) => {
+    if (!dateString) return 'normal';
     const date = new Date(dateString);
     const now = new Date();
     const diff = date - now;
@@ -46,34 +93,18 @@ const HuntingData = () => {
     return 'normal';
   };
 
-  // Filter and sort bids
-  const filteredBids = bids
-    .filter(bid => 
-      bid.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bid.portal.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      let aValue = a[sortField];
-      let bValue = b[sortField];
-      
-      if (sortField === 'createdAt' || sortField === 'timestamp' || sortField === 'expirationDate') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
   const formatLastRefresh = (timestamp) => {
     if (!timestamp) return 'Never';
     const date = new Date(timestamp);
-    return date.toLocaleString();
+    return date.toLocaleTimeString();
   };
+
+  // Filter bids client-side for search functionality
+  const filteredBids = bids.filter(bid => 
+    bid.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bid.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bid.portal.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="hunting-data">
@@ -81,8 +112,8 @@ const HuntingData = () => {
         <div className="title-section">
           <h2>Hunting Data</h2>
           <div className="data-info">
-            <span className="bid-count">{filteredBids.length} bids</span>
-            <span className="last-refresh">Last refresh: {formatLastRefresh(lastRefresh)}</span>
+            <span className="bid-count">{filteredBids.length} of {pagination.total} bids</span>
+            <span className="last-refresh">Last refresh: {formatLastRefresh(new Date())}</span>
           </div>
         </div>
         
@@ -99,11 +130,11 @@ const HuntingData = () => {
           </div>
           
           <button 
-            className={`refresh-btn ${loading ? 'loading' : ''}`}
+            className={`refresh-btn ${isLoading || refreshMutation.isPending ? 'loading' : ''}`}
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={isLoading || refreshMutation.isPending}
           >
-            {loading ? '⏳' : '🔄'} Refresh
+            {isLoading || refreshMutation.isPending ? '⏳' : '🔄'} Refresh
           </button>
         </div>
       </div>
@@ -116,7 +147,7 @@ const HuntingData = () => {
       )}
 
       <div className="table-container">
-        {loading && bids.length === 0 ? (
+        {isLoading && bids.length === 0 ? (
           <div className="loading-state">
             <div className="spinner"></div>
             <p>Loading bid data...</p>
@@ -136,39 +167,41 @@ const HuntingData = () => {
           <table className="bids-table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('timestamp')} className="sortable">
-                  Timestamp {sortField === 'timestamp' && (sortOrder === 'asc' ? '↑' : '↓')}
+                <th onClick={() => handleSort('postedDate')} className="sortable">
+                  Posted Date {sortField === 'postedDate' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => handleSort('title')} className="sortable">
                   Title {sortField === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('expirationDate')} className="sortable">
-                  Expiration {sortField === 'expirationDate' && (sortOrder === 'asc' ? '↑' : '↓')}
+                <th onClick={() => handleSort('dueDate')} className="sortable">
+                  Due Date {sortField === 'dueDate' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th onClick={() => handleSort('quantity')} className="sortable">
                   Quantity {sortField === 'quantity' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th>Description</th>
                 <th>Documents</th>
+                <th>Bid Link</th>
                 <th onClick={() => handleSort('portal')} className="sortable">
                   Portal {sortField === 'portal' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredBids.map((bid) => (
                 <tr key={bid.id || bid._id}>
-                  <td className="timestamp-cell">
-                    {formatDate(bid.timestamp)}
+                  <td className="date-cell">
+                    {formatDate(bid.postedDate || bid.timestamp)}
                   </td>
                   <td className="title-cell">
                     <span className="bid-title" title={bid.title}>
                       {bid.title}
                     </span>
                   </td>
-                  <td className={`expiration-cell ${getExpirationClass(bid.expirationDate)}`}>
-                    <span className="expiration-date" title={formatDate(bid.expirationDate)}>
-                      {formatExpiration(bid.expirationDate)}
+                  <td className={`date-cell ${getExpirationClass(bid.dueDate || bid.expirationDate)}`}>
+                    <span className="due-date" title={formatDate(bid.dueDate || bid.expirationDate)}>
+                      {formatExpiration(bid.dueDate || bid.expirationDate)}
                     </span>
                   </td>
                   <td className="quantity-cell">
@@ -202,15 +235,86 @@ const HuntingData = () => {
                       <span className="no-docs">No documents</span>
                     )}
                   </td>
+                  <td className="bid-link-cell">
+                    {bid.bidLink ? (
+                      <a 
+                        href={bid.bidLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bid-link"
+                        title="View original solicitation"
+                      >
+                        🔗 View Bid
+                      </a>
+                    ) : (
+                      <span className="no-link">No link</span>
+                    )}
+                  </td>
                   <td className="portal-cell">
                     <span className="portal-badge">{bid.portal}</span>
+                  </td>
+                  <td className="actions-cell">
+                    <button
+                      className="delete-btn"
+                      onClick={() => handleDeleteClick(bid)}
+                      title="Delete this bid"
+                      disabled={deleteMutation.isPending}
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        
+        {/* Pagination */}
+        {filteredBids.length > 0 && (
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={limit}
+            totalItems={pagination.total}
+          />
+        )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>Confirm Delete</h3>
+            <p>Are you sure you want to delete the bid "{deleteConfirm.title}"?</p>
+            <p className="warning">This action cannot be undone.</p>
+            <div className="modal-actions">
+              <button 
+                className="cancel-btn" 
+                onClick={handleDeleteCancel}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button 
+                className="delete-confirm-btn" 
+                onClick={handleDeleteConfirm}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error/Success Messages */}
+      {error && (
+        <div className="error-message">
+          <span className="error-icon">⚠️</span>
+          <span>{error.message || 'An error occurred'}</span>
+        </div>
+      )}
     </div>
   );
 };

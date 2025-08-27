@@ -337,3 +337,141 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* New styles for enhanced functionality */
+
+.bid-link-cell {
+  text-align: center;
+  min-width: 100px;
+}
+
+.bid-link {
+  color: #007bff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.bid-link:hover {
+  background: #e3f2fd;
+  text-decoration: none;
+}
+
+.no-link {
+  color: #6c757d;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.actions-cell {
+  text-align: center;
+  min-width: 60px;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #ffebee;
+  transform: scale(1.1);
+}
+
+.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.date-cell {
+  min-width: 140px;
+  font-size: 13px;
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal h3 {
+  margin: 0 0 15px 0;
+  color: #dc3545;
+  font-size: 1.3rem;
+}
+
+.modal p {
+  margin: 10px 0;
+  color: #495057;
+}
+
+.modal .warning {
+  color: #dc3545;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.cancel-btn, .delete-confirm-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn {
+  background: #6c757d;
+  color: white;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+.delete-confirm-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.delete-confirm-btn:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.cancel-btn:disabled, .delete-confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
