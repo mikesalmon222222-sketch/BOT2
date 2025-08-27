@@ -91,15 +91,22 @@ const Credentials = () => {
 
       if (editingCredential) {
         const response = await updateCredential(editingCredential._id, formData);
-        updateContextCredential(response.data.data);
+        updateContextCredential(response.data);
       } else {
         const response = await createCredential(formData);
-        addCredential(response.data.data);
+        addCredential(response.data);
       }
 
       resetForm();
     } catch (error) {
-      setError(error.response?.data?.error || 'Failed to save credential');
+      console.error('Credential submission error:', error);
+      if (error.status === 400) {
+        setError(error.data?.error || error.message);
+      } else if (error.status === 503) {
+        setError(error.data?.error || 'Database connection unavailable. Please try again later.');
+      } else {
+        setError(error.message || 'Failed to save credential');
+      }
     } finally {
       setLoading(false);
     }
@@ -140,7 +147,7 @@ const Credentials = () => {
         ...credential,
         isActive: !credential.isActive
       });
-      updateContextCredential(response.data.data);
+      updateContextCredential(response.data);
     } catch (error) {
       setError('Failed to update credential status');
     } finally {
