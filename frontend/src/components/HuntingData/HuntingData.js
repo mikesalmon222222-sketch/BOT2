@@ -308,11 +308,11 @@ const HuntingData = () => {
         </div>
       )}
 
-      {/* Error/Success Messages */}
+      {/* Error Messages */}
       {error && (
         <div className="error-message">
           <span className="error-icon">⚠️</span>
-          <span>{error.message || 'An error occurred'}</span>
+          <span>Unable to connect to server. Please check if the backend is running.</span>
         </div>
       )}
     </div>
