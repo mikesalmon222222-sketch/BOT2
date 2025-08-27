@@ -1,5 +1,6 @@
 const Credential = require('../models/Credential');
 const mongoose = require('mongoose');
+const scraperService = require('../services/scraperService');
 const logger = require('../utils/logger');
 
 // Helper function to check MongoDB connection
@@ -104,9 +105,20 @@ const createCredential = async (req, res, next) => {
     // Don't return password in response
     const responseCredential = await Credential.findById(credential._id).select('-password');
 
+    // Trigger immediate scraping for the new portal (async, don't wait)
+    setImmediate(async () => {
+      try {
+        logger.info(`Triggering immediate scrape for new ${portalName} portal...`);
+        await scraperService.runScraper();
+      } catch (error) {
+        logger.error('Error during immediate scrape after credential creation:', error);
+      }
+    });
+
     res.status(201).json({
       success: true,
-      data: responseCredential
+      data: responseCredential,
+      message: `${portalName} portal configured successfully. Scraping initiated.`
     });
   } catch (error) {
     logger.error('Error creating credential:', error);
