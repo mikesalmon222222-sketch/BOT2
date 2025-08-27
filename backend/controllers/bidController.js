@@ -2,6 +2,7 @@ const Bid = require('../models/Bid');
 const mongoose = require('mongoose');
 const scraperService = require('../services/scraperService');
 const logger = require('../utils/logger');
+const mockDatabase = require('../utils/mockDatabase');
 
 // Helper function to check MongoDB connection
 const isMongoConnected = () => {
@@ -13,34 +14,56 @@ const isMongoConnected = () => {
 // @access  Public
 const getAllBids = async (req, res, next) => {
   try {
-    // Check MongoDB connection first
-    if (!isMongoConnected()) {
-      return res.status(200).json({
-        success: true,
-        count: 0,
-        total: 0,
-        page: parseInt(req.query.page) || 1,
-        pages: 0,
-        data: []
-      });
-    }
-
     const { page = 1, limit = 10, portal, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
-    const query = {};
-    if (portal) {
-      query.portal = portal;
+    let bids = [];
+    let total = 0;
+
+    if (isMongoConnected()) {
+      // Use MongoDB
+      const query = {};
+      if (portal) {
+        query.portal = portal;
+      }
+
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+      bids = await Bid.find(query)
+        .sort(sortOptions)
+        .limit(parseInt(limit))
+        .skip((parseInt(page) - 1) * parseInt(limit));
+
+      total = await Bid.countDocuments(query);
+    } else {
+      // Use mock database
+      logger.info('MongoDB not connected, using mock database for bids');
+      let mockBids = mockDatabase.bids.find();
+      
+      // Filter by portal if specified
+      if (portal) {
+        mockBids = mockBids.filter(bid => bid.portal === portal);
+      }
+      
+      // Sort bids
+      mockBids.sort((a, b) => {
+        const aValue = a[sortBy] || a.createdAt;
+        const bValue = b[sortBy] || b.createdAt;
+        
+        if (sortOrder === 'desc') {
+          return new Date(bValue) - new Date(aValue);
+        } else {
+          return new Date(aValue) - new Date(bValue);
+        }
+      });
+      
+      total = mockBids.length;
+      
+      // Apply pagination
+      const startIndex = (parseInt(page) - 1) * parseInt(limit);
+      const endIndex = startIndex + parseInt(limit);
+      bids = mockBids.slice(startIndex, endIndex);
     }
-
-    const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
-
-    const bids = await Bid.find(query)
-      .sort(sortOptions)
-      .limit(parseInt(limit))
-      .skip((parseInt(page) - 1) * parseInt(limit));
-
-    const total = await Bid.countDocuments(query);
 
     res.status(200).json({
       success: true,
@@ -72,18 +95,15 @@ const getAllBids = async (req, res, next) => {
 // @access  Public
 const getTodaysBidCount = async (req, res, next) => {
   try {
-    // Check MongoDB connection first
-    if (!isMongoConnected()) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          count: 0,
-          date: new Date().toISOString().split('T')[0]
-        }
-      });
+    let count = 0;
+    
+    if (isMongoConnected()) {
+      count = await scraperService.getTodaysBidCount();
+    } else {
+      // Use mock database
+      logger.info('MongoDB not connected, using mock database for today\'s bid count');
+      count = await scraperService.getTodaysBidCount(); // This method already handles mock database
     }
-
-    const count = await scraperService.getTodaysBidCount();
     
     res.status(200).json({
       success: true,

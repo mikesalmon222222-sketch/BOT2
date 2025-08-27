@@ -110,17 +110,35 @@ const mockDatabase = {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
     
     mockBids.push({
-      id: 'test_septa_1',
-      title: 'Transportation Services Contract',
-      description: 'Test bid for transportation services',
+      id: 'septa_test_1',
+      title: 'Bus Maintenance Services Contract',
+      description: 'Comprehensive maintenance services for SEPTA bus fleet including routine inspections, repairs, and emergency maintenance.',
+      postedDate: today.toISOString(),
+      dueDate: nextWeek.toISOString(),
+      portal: 'SEPTA',
+      bidLink: 'https://epsadmin.septa.org/vendor/requisitions/view/12345',
+      quantity: '1 annual contract',
+      documents: [],
+      _id: 'mock_bid_1',
+      createdAt: today,
+      updatedAt: today
+    });
+    
+    mockBids.push({
+      id: 'septa_test_2', 
+      title: 'Track Signal Equipment Upgrade',
+      description: 'Upgrade and modernization of track signal equipment along the Broad Street Line.',
       postedDate: today.toISOString(),
       dueDate: tomorrow.toISOString(),
       portal: 'SEPTA',
-      bidLink: 'https://epsadmin.septa.org/vendor/requisitions/view/123',
-      quantity: '1 contract',
-      _id: 'mock_bid_1',
+      bidLink: 'https://epsadmin.septa.org/vendor/requisitions/view/12346',
+      quantity: '15 signal units',
+      documents: [],
+      _id: 'mock_bid_2',
       createdAt: today,
       updatedAt: today
     });
