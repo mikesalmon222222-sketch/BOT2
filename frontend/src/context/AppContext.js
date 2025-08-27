@@ -38,18 +38,18 @@ const appReducer = (state, action) => {
     case ActionTypes.SET_CREDENTIALS:
       return { ...state, credentials: action.payload };
     case ActionTypes.ADD_CREDENTIAL:
-      return { ...state, credentials: [...state.credentials, action.payload] };
+      return { ...state, credentials: [...(state.credentials || []), action.payload] };
     case ActionTypes.UPDATE_CREDENTIAL:
       return {
         ...state,
-        credentials: state.credentials.map(cred =>
+        credentials: (state.credentials || []).map(cred =>
           cred._id === action.payload._id ? action.payload : cred
         )
       };
     case ActionTypes.DELETE_CREDENTIAL:
       return {
         ...state,
-        credentials: state.credentials.filter(cred => cred._id !== action.payload)
+        credentials: (state.credentials || []).filter(cred => cred._id !== action.payload)
       };
     case ActionTypes.SET_LAST_REFRESH:
       return { ...state, lastRefresh: action.payload };
