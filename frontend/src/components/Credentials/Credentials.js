@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
-import { getCredentials, createCredential, updateCredential, deleteCredential } from '../../services/api';
+import { createCredential, updateCredential, deleteCredential } from '../../services/api';
 import './Credentials.css';
 
 const Credentials = () => {
-  const { credentials, setCredentials, addCredential, updateCredential: updateContextCredential, deleteCredential: deleteContextCredential } = useApp();
+  const { credentials, setCredentials, addCredential, updateCredential: updateContextCredential, deleteCredential: deleteContextCredential, fetchCredentials } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
@@ -18,21 +18,11 @@ const Credentials = () => {
   });
 
   useEffect(() => {
-    fetchCredentials();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchCredentials = async () => {
-    try {
-      setLoading(true);
-      const response = await getCredentials();
-      setCredentials(response.data.data);
-    } catch (error) {
-      setError('Failed to fetch credentials');
-      console.error('Error fetching credentials:', error);
-    } finally {
-      setLoading(false);
+    // The context already fetches credentials on mount, but let's ensure we have the latest
+    if (fetchCredentials) {
+      fetchCredentials();
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetForm = () => {
     setFormData({

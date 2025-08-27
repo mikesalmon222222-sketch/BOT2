@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { getBids, getTodaysBidCount, refreshBids } from '../services/api';
+import { getBids, getTodaysBidCount, refreshBids, getCredentials } from '../services/api';
 
 // Initial state
 const initialState = {
@@ -124,6 +124,18 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  // Fetch credentials
+  const fetchCredentials = async () => {
+    try {
+      const response = await getCredentials();
+      // The API returns {success: true, count: 1, data: [...]}
+      // We need just the array part
+      setCredentials(response.data.data || []);
+    } catch (error) {
+      console.error('AppContext: Failed to fetch credentials:', error);
+    }
+  };
+
   // Manual refresh
   const handleRefresh = async () => {
     try {
@@ -131,6 +143,7 @@ export const AppProvider = ({ children }) => {
       await refreshBids();
       await fetchBids();
       await fetchTodaysCount();
+      await fetchCredentials();
     } catch (error) {
       setError(error.message || 'Failed to refresh bids');
     }
@@ -141,11 +154,13 @@ export const AppProvider = ({ children }) => {
     // Initial fetch
     fetchBids();
     fetchTodaysCount();
+    fetchCredentials();
 
     // Set up interval for auto-refresh
     const interval = setInterval(() => {
       fetchBids();
       fetchTodaysCount();
+      fetchCredentials();
     }, 15 * 60 * 1000); // 15 minutes
 
     return () => clearInterval(interval);
@@ -164,6 +179,7 @@ export const AppProvider = ({ children }) => {
     setLastRefresh,
     fetchBids,
     fetchTodaysCount,
+    fetchCredentials,
     handleRefresh
   };
 
