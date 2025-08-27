@@ -98,6 +98,11 @@ export const stopScheduler = () => {
   return apiRequest('/scraper/scheduler/stop', { method: 'POST' });
 };
 
+// Test SEPTA scraper endpoint
+export const testSeptaScraper = () => {
+  return apiRequest('/test-septa-scraper');
+};
+
 // Health check
 export const healthCheck = () => {
   return apiRequest('/health');
@@ -116,6 +121,7 @@ const apiHelpers = {
   getScraperStatus, 
   startScheduler, 
   stopScheduler, 
+  testSeptaScraper,
   healthCheck 
 };
 
