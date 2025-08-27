@@ -31,7 +31,10 @@ const TodaysCount = () => {
         ) : error ? (
           <div className="error">
             <span className="error-icon">⚠️</span>
-            <span>Error loading count</span>
+            <div className="error-details">
+              <span>Connection Error</span>
+              <small>Unable to connect to database</small>
+            </div>
           </div>
         ) : (
           <div className="count-value">

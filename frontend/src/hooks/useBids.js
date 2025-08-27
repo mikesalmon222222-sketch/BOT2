@@ -11,19 +11,45 @@ const fetchBids = async ({ page = 1, limit = 10, portal, sortBy = 'createdAt', s
   if (sortBy) params.append('sortBy', sortBy);
   if (sortOrder) params.append('sortOrder', sortOrder);
 
-  const response = await fetch(`${API_BASE_URL}/bids?${params.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch bids');
+  try {
+    const response = await fetch(`${API_BASE_URL}/bids?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Return empty result structure for network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      return {
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(page),
+        pages: 0,
+        data: []
+      };
+    }
+    throw error;
   }
-  return response.json();
 };
 
 const fetchTodaysCount = async () => {
-  const response = await fetch(`${API_BASE_URL}/bids/today`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch today\'s count');
+  try {
+    const response = await fetch(`${API_BASE_URL}/bids/today`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
+  } catch (error) {
+    // Return empty result structure for network errors
+    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+      return {
+        success: true,
+        data: { count: 0, date: new Date().toISOString().split('T')[0] }
+      };
+    }
+    throw error;
   }
-  return response.json();
 };
 
 const refreshBids = async () => {
@@ -53,50 +79,8 @@ export const useBids = (page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 
     queryFn: () => fetchBids({ page, limit, sortBy, sortOrder }),
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchInterval: 15 * 60 * 1000, // 15 minutes auto-refresh
-    retry: false, // Don't retry failed requests in demo
-    // Fallback to sample data when API fails
-    placeholderData: {
-      success: true,
-      count: 3,
-      total: 3,
-      page: 1,
-      pages: 1,
-      data: [
-        {
-          id: 'demo_1',
-          postedDate: '2025-08-25T10:00:00.000Z',
-          dueDate: '2025-09-15T17:00:00.000Z',
-          title: 'Metro Transit Bus Fleet Maintenance Services',
-          quantity: '150 buses',
-          description: 'Comprehensive maintenance services for Metro Transit bus fleet including scheduled inspections, repairs, and emergency services.',
-          documents: ['https://example.com/rfp-doc1.pdf', 'https://example.com/specifications.pdf'],
-          bidLink: 'https://business.metro.net/solicitation/12345',
-          portal: 'metro'
-        },
-        {
-          id: 'demo_2', 
-          postedDate: '2025-08-26T14:30:00.000Z',
-          dueDate: '2025-09-20T16:00:00.000Z',
-          title: 'Construction Materials Supply Contract',
-          quantity: '500 tons',
-          description: 'Supply of construction materials including concrete, steel, and aggregates for infrastructure projects.',
-          documents: ['https://example.com/materials-spec.pdf'],
-          bidLink: 'https://business.metro.net/solicitation/12346',
-          portal: 'metro'
-        },
-        {
-          id: 'demo_3',
-          postedDate: '2025-08-27T09:15:00.000Z', 
-          dueDate: '2025-09-10T12:00:00.000Z',
-          title: 'IT Security Services and Support',
-          quantity: '3 years',
-          description: 'Comprehensive IT security services including monitoring, incident response, and compliance support.',
-          documents: [],
-          bidLink: 'https://business.metro.net/solicitation/12347',
-          portal: 'metro'
-        }
-      ]
-    }
+    retry: 2, // Retry failed requests twice
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 };
 
@@ -106,12 +90,8 @@ export const useTodaysCount = () => {
     queryFn: fetchTodaysCount,
     staleTime: 1 * 60 * 1000, // 1 minute
     refetchInterval: 60 * 1000, // 1 minute auto-refresh
-    retry: false, // Don't retry failed requests in demo
-    // Fallback to sample data when API fails
-    placeholderData: {
-      success: true,
-      data: { count: 3, date: new Date().toISOString().split('T')[0] }
-    }
+    retry: 2, // Retry failed requests twice
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 };
 

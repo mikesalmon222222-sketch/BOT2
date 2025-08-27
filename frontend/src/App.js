@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AppProvider } from './context/AppContext';
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import Navbar from './components/Navbar/Navbar';
 import TodaysCount from './components/TodaysCount/TodaysCount';
 import HuntingData from './components/HuntingData/HuntingData';
@@ -36,16 +37,20 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <div className="app">
-          <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
-          <main className="main-content">
-            <div className="content-wrapper">
-              {renderActiveSection()}
-            </div>
-          </main>
-        </div>
-      </AppProvider>
+      <ErrorBoundary>
+        <AppProvider>
+          <div className="app">
+            <Navbar activeSection={activeSection} setActiveSection={setActiveSection} />
+            <main className="main-content">
+              <div className="content-wrapper">
+                <ErrorBoundary>
+                  {renderActiveSection()}
+                </ErrorBoundary>
+              </div>
+            </main>
+          </div>
+        </AppProvider>
+      </ErrorBoundary>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );

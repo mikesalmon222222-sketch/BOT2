@@ -1,12 +1,30 @@
 const Bid = require('../models/Bid');
+const mongoose = require('mongoose');
 const scraperService = require('../services/scraperService');
 const logger = require('../utils/logger');
+
+// Helper function to check MongoDB connection
+const isMongoConnected = () => {
+  return mongoose.connection.readyState === 1;
+};
 
 // @desc    Get all bids
 // @route   GET /api/bids
 // @access  Public
 const getAllBids = async (req, res, next) => {
   try {
+    // Check MongoDB connection first
+    if (!isMongoConnected()) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(req.query.page) || 1,
+        pages: 0,
+        data: []
+      });
+    }
+
     const { page = 1, limit = 10, portal, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
     const query = {};
@@ -34,6 +52,17 @@ const getAllBids = async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Error getting all bids:', error);
+    // If it's a database connection error, return empty data instead of error
+    if (error.name === 'MongoNetworkError' || error.name === 'MongoServerError' || error.name === 'MongooseServerSelectionError') {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        total: 0,
+        page: parseInt(req.query.page) || 1,
+        pages: 0,
+        data: []
+      });
+    }
     next(error);
   }
 };
@@ -43,6 +72,17 @@ const getAllBids = async (req, res, next) => {
 // @access  Public
 const getTodaysBidCount = async (req, res, next) => {
   try {
+    // Check MongoDB connection first
+    if (!isMongoConnected()) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          count: 0,
+          date: new Date().toISOString().split('T')[0]
+        }
+      });
+    }
+
     const count = await scraperService.getTodaysBidCount();
     
     res.status(200).json({
@@ -54,6 +94,16 @@ const getTodaysBidCount = async (req, res, next) => {
     });
   } catch (error) {
     logger.error('Error getting today\'s bid count:', error);
+    // If it's a database connection error, return 0 instead of error
+    if (error.name === 'MongoNetworkError' || error.name === 'MongoServerError' || error.name === 'MongooseServerSelectionError') {
+      return res.status(200).json({
+        success: true,
+        data: {
+          count: 0,
+          date: new Date().toISOString().split('T')[0]
+        }
+      });
+    }
     next(error);
   }
 };

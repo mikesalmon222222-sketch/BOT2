@@ -14,7 +14,6 @@ const Credentials = () => {
     url: '',
     username: '',
     password: '',
-    isPublic: false,
     isActive: true
   });
 
@@ -41,7 +40,6 @@ const Credentials = () => {
       url: '',
       username: '',
       password: '',
-      isPublic: false,
       isActive: true
     });
     setEditingCredential(null);
@@ -51,23 +49,40 @@ const Credentials = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    setFormData(prev => {
+      const updated = { ...prev, [name]: newValue };
+      
+      // Auto-fill URL and set defaults based on portal selection
+      if (name === 'portalName') {
+        if (value === 'Metro') {
+          updated.url = 'https://business.metro.net/webcenter/portal/VendorPortal/pages_home/solicitations/openSolicitations';
+          updated.username = '';
+          updated.password = '';
+        } else if (value === 'SEPTA') {
+          updated.url = 'https://epsadmin.septa.org/vendor/requisitions/list/';
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.portalName || !formData.url) {
-      setError('Portal name and URL are required');
+    if (!formData.portalName) {
+      setError('Portal selection is required');
       return;
     }
 
-    if (!formData.isPublic && (!formData.username || !formData.password)) {
-      setError('Username and password are required for non-public portals');
-      return;
+    // Portal-specific validation
+    if (formData.portalName === 'SEPTA') {
+      if (!formData.username || !formData.password) {
+        setError('Username and password are required for SEPTA portal');
+        return;
+      }
     }
 
     try {
@@ -96,7 +111,6 @@ const Credentials = () => {
       url: credential.url,
       username: credential.username || '',
       password: '', // Don't pre-fill password for security
-      isPublic: credential.isPublic,
       isActive: credential.isActive
     });
     setEditingCredential(credential);
@@ -165,46 +179,35 @@ const Credentials = () => {
             <form onSubmit={handleSubmit}>
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="portalName">Portal Name *</label>
-                  <input
-                    type="text"
+                  <label htmlFor="portalName">Portal Type *</label>
+                  <select
                     id="portalName"
                     name="portalName"
                     value={formData.portalName}
                     onChange={handleInputChange}
-                    placeholder="e.g., Metro Business Portal"
                     required
-                  />
+                  >
+                    <option value="">Select a portal...</option>
+                    <option value="Metro">Metro Business Portal (Public)</option>
+                    <option value="SEPTA">SEPTA Vendor Portal (Requires Login)</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="url">Portal URL *</label>
+                  <label htmlFor="url">Portal URL</label>
                   <input
                     type="url"
                     id="url"
                     name="url"
                     value={formData.url}
                     onChange={handleInputChange}
-                    placeholder="https://example.com/portal"
-                    required
+                    placeholder="Auto-filled based on portal selection"
+                    readOnly={formData.portalName !== ''}
                   />
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    name="isPublic"
-                    checked={formData.isPublic}
-                    onChange={handleInputChange}
-                  />
-                  <span className="checkbox-custom"></span>
-                  Public Portal (no authentication required)
-                </label>
-              </div>
-
-              {!formData.isPublic && (
+              {formData.portalName === 'SEPTA' && (
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="username">Username</label>
@@ -259,12 +262,12 @@ const Credentials = () => {
       )}
 
       <div className="credentials-list">
-        {loading && credentials.length === 0 ? (
+        {loading && (!credentials || credentials.length === 0) ? (
           <div className="loading-state">
             <div className="spinner"></div>
             <p>Loading credentials...</p>
           </div>
-        ) : credentials.length === 0 ? (
+        ) : (!credentials || credentials.length === 0) ? (
           <div className="empty-state">
             <span className="empty-icon">🔐</span>
             <h3>No credentials configured</h3>
@@ -275,7 +278,7 @@ const Credentials = () => {
           </div>
         ) : (
           <div className="credentials-grid">
-            {credentials.map((credential) => (
+            {(credentials || []).map((credential) => (
               <div key={credential._id} className={`credential-card ${!credential.isActive ? 'inactive' : ''}`}>
                 <div className="card-header">
                   <h4 className="portal-name">{credential.portalName}</h4>

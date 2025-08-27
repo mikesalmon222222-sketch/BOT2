@@ -6,25 +6,38 @@ const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to database
-connectDB();
-
-// Start the scheduler
-schedulerService.start();
+// Connect to database - don't exit if it fails
+connectDB()
+  .then((connection) => {
+    if (connection) {
+      logger.info('Database connected successfully');
+      // Start the scheduler only if database is connected
+      schedulerService.start();
+    } else {
+      logger.warn('Starting server without database connection');
+    }
+  })
+  .catch((error) => {
+    logger.error('Database connection failed, starting server anyway:', error);
+  });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', err);
-  // Close server & exit process
-  server.close(() => {
-    process.exit(1);
-  });
+  // Don't exit the process - just log the error
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
-  process.exit(1);
+  // Don't exit the process immediately - attempt graceful shutdown
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
 });
 
 // Graceful shutdown

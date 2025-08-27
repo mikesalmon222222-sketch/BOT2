@@ -159,7 +159,9 @@ const HuntingData = () => {
             <p>
               {searchTerm 
                 ? `No bids match "${searchTerm}". Try a different search term.`
-                : 'No bids have been scraped yet. Click refresh to get the latest data.'
+                : error 
+                  ? 'Unable to connect to server. Please check if the backend is running and database is connected.'
+                  : 'No portals configured. Please add a portal in Credentials to start collecting bid data.'
               }
             </p>
           </div>

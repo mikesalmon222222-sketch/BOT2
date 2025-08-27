@@ -6,8 +6,8 @@ const connectDB = async () => {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/bid_scraper';
     
     const conn = await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Fail fast after 5 seconds
+      bufferCommands: false, // Disable mongoose buffering
     });
 
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
@@ -28,7 +28,8 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     logger.error('Database connection failed:', error);
-    process.exit(1);
+    logger.warn('App will continue running without database - API calls will return appropriate errors');
+    return null;
   }
 };
 
